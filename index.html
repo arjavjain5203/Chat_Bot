@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Punjab Bus Help Chatbot</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f6fa;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      background: #003366;
+      color: white;
+      text-align: center;
+      padding: 15px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    #chat-container {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .message {
+      margin: 10px 0;
+      padding: 12px 16px;
+      border-radius: 12px;
+      max-width: 75%;
+      word-wrap: break-word;
+    }
+
+    .user-message {
+      background: #003366;
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 0;
+    }
+
+    .bot-message {
+      background: #e6e6e6;
+      color: #000;
+      align-self: flex-start;
+      border-bottom-left-radius: 0;
+    }
+
+    .typing-indicator {
+      font-style: italic;
+      color: #555;
+      align-self: flex-start;
+      margin: 5px 0;
+    }
+
+    .bus-card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 12px;
+      margin: 8px 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .bus-card h4 {
+      margin: 0 0 5px 0;
+      font-size: 16px;
+      color: #003366;
+    }
+
+    .bus-card p {
+      margin: 4px 0;
+      font-size: 14px;
+    }
+
+    #input-area {
+      display: flex;
+      border-top: 1px solid #ccc;
+      padding: 10px;
+      background: white;
+    }
+
+    #user-input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      outline: none;
+    }
+
+    #send-btn {
+      margin-left: 10px;
+      padding: 10px 16px;
+      background: #003366;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    #send-btn:disabled {
+      background: #999;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <header>Punjab Bus Help Chatbot 🚌</header>
+  
+  <div id="chat-container"></div>
+  
+  <div id="input-area">
+    <input type="text" id="user-input" placeholder="Ask about buses..." />
+    <button id="send-btn">Send</button>
+  </div>
+  
+  <script>
+    const chatContainer = document.getElementById("chat-container");
+    const userInput = document.getElementById("user-input");
+    const sendBtn = document.getElementById("send-btn");
+    let typingIndicator;
+
+    function addMessage(text, sender) {
+      const msg = document.createElement("div");
+      msg.classList.add("message", sender === "user" ? "user-message" : "bot-message");
+      msg.textContent = text;
+      chatContainer.appendChild(msg);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function addBusCard(bus) {
+      const card = document.createElement("div");
+      card.classList.add("bus-card");
+      card.innerHTML = `
+        <h4>Bus ${bus.bus_number}</h4>
+        <p><strong>Route:</strong> ${bus.route_name}</p>
+        <p><strong>Location:</strong> ${bus.current_location}</p>
+        <p><strong>Status:</strong> ${bus.status}</p>
+      `;
+      chatContainer.appendChild(card);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function showTyping() {
+      typingIndicator = document.createElement("div");
+      typingIndicator.classList.add("typing-indicator");
+      typingIndicator.textContent = "Bot is typing...";
+      chatContainer.appendChild(typingIndicator);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function removeTyping() {
+      if (typingIndicator) {
+        typingIndicator.remove();
+        typingIndicator = null;
+      }
+    }
+
+    async function sendMessage() {
+      const message = userInput.value.trim();
+      if (!message) return;
+      
+      addMessage(message, "user");
+      userInput.value = "";
+      sendBtn.disabled = true;
+      showTyping();
+
+      try {
+        const response = await fetch("http://localhost:3000/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: 1, message })
+        });
+
+        const raw = await response.text();
+
+        // Clean markdown fences (```json ... ```)
+        const clean = raw.replace(/```json|```/g, "").trim();
+
+        let data;
+        try {
+          data = JSON.parse(clean);
+        } catch (e) {
+          removeTyping();
+          addMessage("⚠️ Error parsing server response.", "bot");
+          sendBtn.disabled = false;
+          return;
+        }
+
+        removeTyping();
+
+        // Handle both bot_response and response fields
+        const botReply = data.bot_response || data.response || "⚠️ No reply from server.";
+        addMessage(botReply, "bot");
+
+        if (data.results && Array.isArray(data.results)) {
+          data.results.forEach(bus => addBusCard(bus));
+        }
+      } catch (err) {
+        removeTyping();
+        addMessage("⚠️ Error: Could not fetch response from server.", "bot");
+      }
+
+      sendBtn.disabled = false;
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    userInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+  </script>
+</body>
+</html>
