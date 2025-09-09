@@ -22,8 +22,11 @@
       padding: 15px;
       font-size: 18px;
       font-weight: bold;
-      position: fixed;
-      top: 0px;
+      position: fixed;   /* ✅ keep it fixed */
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
     }
 
     #chat-container {
@@ -32,6 +35,7 @@
       overflow-y: auto;
       display: flex;
       flex-direction: column;
+      margin-top: 60px;   /* ✅ prevent overlap with fixed header */
     }
 
     .message {
@@ -115,7 +119,7 @@
   </style>
 </head>
 <body>
-  <header>Punjab Bus Help Chatbot 🚌</header>
+  <header class="header">Punjab Bus Help Chatbot 🚌</header>
   
   <div id="chat-container"></div>
   
@@ -199,7 +203,6 @@
 
         removeTyping();
 
-        // Handle both bot_response and response fields
         const botReply = data.bot_response || data.response || "⚠️ No reply from server.";
         addMessage(botReply, "bot");
 
